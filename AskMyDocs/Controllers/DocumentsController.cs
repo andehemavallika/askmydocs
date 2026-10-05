@@ -1,34 +1,47 @@
-﻿using AskMyDocs.Services;
-using Microsoft.AspNetCore.Http;
+﻿using AskMyDocs.Data;
+using AskMyDocs.Models;
+using AskMyDocs.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
 using UglyToad.PdfPig;
-namespace AskMyDocs.Controllers
+
+namespace AskMyDocs.Controllers;
+
+[ApiController]
+[Route("documents")]
+public class DocumentsController : ControllerBase
 {
-    [ApiController]
-    [Route("documents")]
-    public class DocumentsController : ControllerBase
+    private readonly Chunker _chunker;
+    private readonly AskMyDocsDbContext _db;
+
+    public DocumentsController(Chunker chunker, AskMyDocsDbContext db)
     {
-        private readonly Chunker _chunker;
+        _chunker = chunker;
+        _db = db;
+    }
 
-        public DocumentsController(Chunker chunker)
-        {
-            _chunker = chunker;
-        }
-        [HttpPost]
-        public IActionResult UploadDocument([FromForm] IFormFile file)
-        {
-            if (file == null || file.Length == 0)
+    [HttpPost]
+    public async Task<IActionResult> Upload(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("Please upload a PDF file.");
+
+        using var stream = file.OpenReadStream();
+        using var pdf = PdfDocument.Open(stream);
+
+        var entities = pdf.GetPages()
+            .SelectMany(p => _chunker.Chunk(p.Number, p.Text))
+            .Select(c => new DocumentChunk
             {
-                return BadRequest("No file uploaded.");
-            }
-            using var stream = file.OpenReadStream();
-            using var pdf = PdfDocument.Open(stream);
-            var chunks = pdf.GetPages()
-                .SelectMany(p => _chunker.Chunk(p.Number, p.Text))
-                .ToList();
+                DocumentName = file.FileName,
+                PageNumber = c.PageNumber,
+                ChunkIndex = c.ChunkIndex,
+                Content = c.Text
+            })
+            .ToList();
 
-            return Ok(new { TotalChunks = chunks.Count, Chunks = chunks });
-        }
+        _db.DocumentChunks.AddRange(entities);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { Document = file.FileName, SavedChunks = entities.Count });
     }
 }

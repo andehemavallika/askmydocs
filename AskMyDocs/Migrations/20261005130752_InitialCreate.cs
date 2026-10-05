@@ -12,6 +12,8 @@ namespace AskMyDocs.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Ensure the pgvector extension is installed in the database so the "vector" column type exists
+            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS vector;");
             migrationBuilder.CreateTable(
                 name: "DocumentChunks",
                 columns: table => new
