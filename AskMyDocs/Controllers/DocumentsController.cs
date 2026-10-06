@@ -2,6 +2,7 @@
 using AskMyDocs.Models;
 using AskMyDocs.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using UglyToad.PdfPig;
 
 namespace AskMyDocs.Controllers;
@@ -18,6 +19,17 @@ public class DocumentsController : ControllerBase
         _chunker = chunker;
         _db = db;
     }
+
+    [HttpGet]
+    public async Task<IActionResult> List()
+    {
+        var docs = await _db.DocumentChunks
+            .GroupBy(c => c.DocumentName)
+            .Select(g => new { Document = g.Key, Chunks = g.Count() })
+            .ToListAsync();
+
+        return Ok(docs);
+    } 
 
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
