@@ -10,4 +10,12 @@ public class AskMyDocsDbContext : DbContext
     {
     }
     public DbSet<DocumentChunk> DocumentChunks { get; set; }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasPostgresExtension("vector");
+
+        modelBuilder.Entity<DocumentChunk>()
+            .Property(c => c.Embedding)
+            .HasColumnType("vector(768)");
+    }
 }

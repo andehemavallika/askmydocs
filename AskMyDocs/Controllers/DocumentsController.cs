@@ -13,11 +13,45 @@ public class DocumentsController : ControllerBase
 {
     private readonly Chunker _chunker;
     private readonly AskMyDocsDbContext _db;
+    private readonly EmbeddingService _embedder;
 
-    public DocumentsController(Chunker chunker, AskMyDocsDbContext db)
+    public DocumentsController(Chunker chunker, AskMyDocsDbContext db, EmbeddingService embedder)
     {
         _chunker = chunker;
         _db = db;
+        _embedder = embedder;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Upload(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("Please upload a PDF file.");
+
+        using var stream = file.OpenReadStream();
+        using var pdf = PdfDocument.Open(stream);
+
+        var entities = new List<DocumentChunk>();
+        foreach (var page in pdf.GetPages())
+        {
+            foreach (var c in _chunker.Chunk(page.Number, page.Text))
+            {
+                var vector = await _embedder.EmbedAsync(c.Text);
+                entities.Add(new DocumentChunk
+                {
+                    DocumentName = file.FileName,
+                    PageNumber = c.PageNumber,
+                    ChunkIndex = c.ChunkIndex,
+                    Content = c.Text,
+                    Embedding = new Pgvector.Vector(vector)
+                });
+            }
+        }
+
+        _db.DocumentChunks.AddRange(entities);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { Document = file.FileName, SavedChunks = entities.Count });
     }
 
     [HttpGet]
@@ -29,31 +63,5 @@ public class DocumentsController : ControllerBase
             .ToListAsync();
 
         return Ok(docs);
-    } 
-
-    [HttpPost]
-    public async Task<IActionResult> Upload(IFormFile file)
-    {
-        if (file == null || file.Length == 0)
-            return BadRequest("Please upload a PDF file.");
-
-        using var stream = file.OpenReadStream();
-        using var pdf = PdfDocument.Open(stream);
-
-        var entities = pdf.GetPages()
-            .SelectMany(p => _chunker.Chunk(p.Number, p.Text))
-            .Select(c => new DocumentChunk
-            {
-                DocumentName = file.FileName,
-                PageNumber = c.PageNumber,
-                ChunkIndex = c.ChunkIndex,
-                Content = c.Text
-            })
-            .ToList();
-
-        _db.DocumentChunks.AddRange(entities);
-        await _db.SaveChangesAsync();
-
-        return Ok(new { Document = file.FileName, SavedChunks = entities.Count });
     }
 }
