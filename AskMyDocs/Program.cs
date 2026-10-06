@@ -14,6 +14,8 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<AskMyDocs.Services.Chunker>();
+builder.Services.AddHttpClient<AskMyDocs.Services.EmbeddingService>(c =>
+    c.BaseAddress = new Uri("http://localhost:11434"));
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
