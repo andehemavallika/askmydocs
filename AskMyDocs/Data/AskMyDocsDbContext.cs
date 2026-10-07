@@ -17,5 +17,12 @@ public class AskMyDocsDbContext : DbContext
         modelBuilder.Entity<DocumentChunk>()
             .Property(c => c.Embedding)
             .HasColumnType("vector(768)");
+
+        modelBuilder.Entity<DocumentChunk>()
+            .HasIndex(c => c.Embedding)
+            .HasMethod("hnsw")
+            .HasOperators("vector_cosine_ops")
+            .HasStorageParameter("m", 16)
+            .HasStorageParameter("ef_construction", 64);
     }
 }

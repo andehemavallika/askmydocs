@@ -7,7 +7,7 @@ using Pgvector.EntityFrameworkCore;
 
 namespace AskMyDocs.Controllers;
 
-public record SearchRequest(string Question, int TopK = 3);
+public record SearchRequest(string Question, int TopK = 3, double MinSimilarity = 0.45);
 
 [ApiController]
 [Route("search")]
@@ -19,7 +19,7 @@ public class SearchController(AskMyDocsDbContext db, EmbeddingService embedder) 
         var q = new Vector(await embedder.EmbedAsync(req.Question));
 
         var results = await db.DocumentChunks
-            .Where(c => c.Embedding != null)
+            .Where(c => c.Embedding != null && c.Embedding.CosineDistance(q) <= 1 - req.MinSimilarity)
             .OrderBy(c => c.Embedding!.CosineDistance(q))
             .Take(req.TopK)
             .Select(c => new
