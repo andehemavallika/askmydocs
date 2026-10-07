@@ -16,6 +16,11 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<AskMyDocs.Services.Chunker>();
 builder.Services.AddHttpClient<AskMyDocs.Services.EmbeddingService>(c =>
     c.BaseAddress = new Uri("http://localhost:11434"));
+builder.Services.AddHttpClient<AskMyDocs.Services.ChatService>(c =>
+{
+    c.BaseAddress = new Uri("http://localhost:11434");
+    c.Timeout = TimeSpan.FromMinutes(5);
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
