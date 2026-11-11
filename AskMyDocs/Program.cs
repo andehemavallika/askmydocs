@@ -21,6 +21,10 @@ builder.Services.AddHttpClient<AskMyDocs.Services.ChatService>(c =>
     c.BaseAddress = new Uri("http://localhost:11434");
     c.Timeout = TimeSpan.FromMinutes(5);
 });
+builder.Services.AddCors(o => o.AddPolicy("dev", p =>
+    p.WithOrigins("http://localhost:5173")
+     .AllowAnyHeader()
+     .AllowAnyMethod()));
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -29,7 +33,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 var summaries = new[]
 {
@@ -50,6 +57,7 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
+app.UseCors("dev");
 app.MapControllers();
 app.Run();
 
