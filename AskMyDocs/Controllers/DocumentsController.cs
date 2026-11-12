@@ -34,7 +34,8 @@ public class DocumentsController : ControllerBase
         var entities = new List<DocumentChunk>();
         foreach (var page in pdf.GetPages())
         {
-            foreach (var c in _chunker.Chunk(page.Number, page.Text))
+            var pageText = string.Join(" ", page.GetWords().Select(w => w.Text));
+            foreach (var c in _chunker.Chunk(page.Number, pageText))
             {
                 var vector = await _embedder.EmbedAsync(c.Text);
                 entities.Add(new DocumentChunk
